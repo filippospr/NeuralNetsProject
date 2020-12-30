@@ -2,7 +2,7 @@ import java.util.Random;
 import java.io.FileWriter; 
 import java.io.IOException; 
 
-class exercise_1{
+class dataset1{
 	private static int size=6000;
 	private static float x1[]=new float[size];
 	private static float x2[]=new float[size];
@@ -39,11 +39,19 @@ class exercise_1{
 	}
 	public static void writeToFile(){
 		try {
-      		FileWriter myWriter = new FileWriter("results.csv");
+      		FileWriter trainingWriter = new FileWriter("training_set.csv");
+      		FileWriter testWriter = new FileWriter("test_set.csv");
 			for(int i=0;i<size;i++){
-				myWriter.write(x1[i]+","+x2[i]+","+categories[i]+"\n");
+				float choice=r.nextFloat();
+				if(choice<=0.5){
+					trainingWriter.write(x1[i]+","+x2[i]+","+categories[i]+"\n");
+				}
+				else{
+					testWriter.write(x1[i]+","+x2[i]+","+categories[i]+"\n");	
+				}
 			}
-			myWriter.close();
+			trainingWriter.close();
+			testWriter.close();
     	} 
     	catch (IOException e) {
       		System.out.println("An error occurred.");

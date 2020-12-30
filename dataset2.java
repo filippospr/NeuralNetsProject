@@ -10,7 +10,7 @@ class dataset2{
 
 	static Random r = new Random(); 
 
-
+	// place random points within a box bounds
 	public static void createRandomPointsSquare(float lowerCordinates[] ,float upperCoordinates [] ,int arraypos){	
 		for(int i=arraypos;i<arraypos+150;i++){
 			x1[i]=lowerCordinates[0] + r.nextFloat() * (lowerCordinates[1] -lowerCordinates[0]);
