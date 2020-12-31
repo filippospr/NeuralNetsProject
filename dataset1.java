@@ -66,20 +66,3 @@ class dataset1{
 
 
 
-/*
-y1,1=forward-pass 
-class neuron{
-	float weights[2];
-	float input[2];
-	float output;
-
-	calculateOutput();
-
-}
-
-neuron layer1[2];
-neuron layer2[2];
-layer2[0].input[0]=layer1[0].output;
-calculate output from layer 1 neurons
-
-(*/
