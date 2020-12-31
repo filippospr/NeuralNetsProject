@@ -42,8 +42,8 @@ class dataset1{
       		FileWriter trainingWriter = new FileWriter("training_set.csv");
       		FileWriter testWriter = new FileWriter("test_set.csv");
 			for(int i=0;i<size;i++){
-				float choice=r.nextFloat();
-				if(choice<=0.5){
+				// float choice=r.nextFloat();
+				if(i < size/2){
 					trainingWriter.write(x1[i]+","+x2[i]+","+categories[i]+"\n");
 				}
 				else{
