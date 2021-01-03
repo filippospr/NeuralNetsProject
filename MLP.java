@@ -84,7 +84,7 @@ class MLP{
 	public static float dotProduct(Neuron layer[],float weights[],int layerSize){
 	 	float productSum = 0;
     	for (int i = 0 ; i < layerSize;i++){
-    		productSum += layer[i].output*weights[i];
+    		productSum += layer[i].neuronValue*weights[i];
     	}
 		return productSum;
 	}
@@ -100,17 +100,36 @@ class MLP{
 		return 0;
 	}
 
+	public static void calculateDeltas(int layerIndex,float result[],float target[]){
+		float deltaSum = 0;
+		for(int  neuron=0;neuron<layerSize[layerIndex];neuron++){
+			// delta for output neurons
+			if(layerIndex==(k-1)){
+				network[layerIndex][neuron].delta = derivative(network[layerIndex][neuron].dot,layerIndex)*(result[neuron]-target[neuron]);
+			}
+			else{
+			// delta for hidden neurons
+				for(int i=0;i<layerSize[layerIndex+1];i++){
+					deltaSum+=network[layerIndex+1][i].delta*network[layerIndex+1][i].weights[neuron];
+				}
+				network[layerIndex][neuron].delta= derivative(network[layerIndex][neuron].dot,layerIndex)*deltaSum;
+			}
+		}
+
+	}
+
 	public static float[] forwardPass(float input[]){
-		network[0][0].output = input[0];
-		network[0][1].output = input[1];
+		network[0][0].neuronValue = input[0];
+		network[0][1].neuronValue = input[1];
 		float networkOutput[] = new float[k];
 		float product;
 		for (int i = 1 ; i < numberOfLayers;i++){
 			for (int j = 0 ;j<layerSize[i];j++){
 			    product = dotProduct(network[i-1], network[i][j].weights, layerSize[i-1]) + network[i][j].bias;
-			    network[i][j].output = activateFunc(product, i);
-				if (i == k-1){
-					networkOutput[j] = network[i][j].output;
+			    network[i][j].dot=product; 
+			    network[i][j].neuronValue = activateFunc(product, i);
+				if (i == numberOfLayers-1){
+					networkOutput[j] = network[i][j].neuronValue;
 				}
 			}
 		}
@@ -118,32 +137,23 @@ class MLP{
 	}
 
 	public static void backprop(float result[],float target[]){
-		//calculate output neurons error
-		float totalError=0;
-		for(int i=0;i<4;i++){
-			totalError+=(float)(0.5f)*Math.pow((result[0]-target[0]),2);
-		}
-		System.out.println("Total Error:"+totalError);
-
+		//calculate neuronValue neurons error
 		for (int i = numberOfLayers-1;i>0;i--)
 		{
-			Neuron[] layer = network[i];
 			for (int j = 0 ;j<layerSize[i];j++)
 			{
-				// if it is output neurom
-				if (i == numberOfLayers-1)
-				{
-					for (int k = 0 ;k<layerSize[i-1];k++)
-					{
-						float productResult=dotProduct(network[i-1],network[i][j].weights,layerSize[i-1]);
-						network[i][j].weights[k] -= learningRate*network[i-1][k].output*derivative(productResult,i)*(network[i][j].output-target[k]);
-					
-					}
+				
+				calculateDeltas(i,result,target);
 
+				for (int k = 0 ;k<layerSize[i-1];k++)
+				{
+					//delta for output neuron: (result[k]-target[k])*derivative(network[i][j].dot)
+					//float productResult=dotProduct(network[i-1],network[i][j].weights,layerSize[i-1]);
+					// network[i][j].delta=derivative(network[i][j].dot,i)*(result[k]-target[k]);
+					network[i][j].weights[k] -= learningRate*network[i][k].delta*network[i-1][k].neuronValue;
+					network[i][j].bias -= learningRate* network[i][j].delta;
+					//bias[j] -= gamma_bias * 1 * delta[j]
 				}
-				// }else{
-					
-				// }
 			}
 
 		}
@@ -153,13 +163,22 @@ class MLP{
 		float arr[]=new float[d];
 		float target[]=new float[k];
 		float result[];
-		for(int i=0;i<size;i++){
-			arr[0]=trainingSet[i].x1;
-			arr[1]=trainingSet[i].x2;
-			target[trainingSet[i].category-1]=1;
-			result=forwardPass(arr);
-			backprop(result,target);
-			target[trainingSet[i].category-1]=0;
+		float totalError=0;
+		int epoch=500;
+		for(int j=0;j<epoch;j++){
+			for(int i=0;i<size;i++){
+				arr[0]=trainingSet[i].x1;
+				arr[1]=trainingSet[i].x2;
+				target[trainingSet[i].category-1]=1;
+				result=forwardPass(arr);
+				backprop(result,target);
+				target[trainingSet[i].category-1]=0;
+				for(int w=0;w<k;w++){
+					totalError+=(float)(0.5f)*Math.pow((result[w]-target[w]),2);
+				}
+			}
+			System.out.println("Total error "+totalError);
+			totalError=0;
 		}
 	}
 
@@ -178,9 +197,10 @@ class MLP{
 	}
 	static class Neuron{
 		float weights[];
-		float output;
+		float neuronValue;
 		float bias;
-		float error;
+		float delta;
+		float dot;
 
 		Neuron(int weightsLength){
 			weights=new float[weightsLength];
@@ -192,11 +212,11 @@ class MLP{
 
 	}
 
-	//prints output for each neuron
-	public static void printNeuronOutputs(){
+	//prints neuronValue for each neuron
+	public static void printNeuronOutput(){
 		for(int i=0;i<numberOfLayers;i++){
 			for(int j=0;j<layerSize[i];j++){
-				System.out.print(network[i][j].output+" ");
+				System.out.print(network[i][j].neuronValue+" ");
 			}
 			System.out.println();
 		}		
@@ -224,7 +244,7 @@ class MLP{
 	public static void main(String[] args) {
 		readFile("training_set.csv",true);
 		initiateNetwork();
-		// printNeuronOutputs();
+		// printNeuronneuronValues();
 		// printNeuronWeights();
 
 		// float input[] = {trainingSet[0].x1,                                                                                                                                                                                              trainingSet[0].x2};
@@ -243,30 +263,30 @@ y1,1=forward-pass
 class neuron{
 	float weights[2];
 	//float input[2];
-	float output;
+	float neuronValue;
 
-	calculateOutput();
+	calculateneuronValue();
 
 }
 
 neuron layer1[2];
 neuron layer2[2];
-layer2[0].input[0]=layer1[0].output;
-calculate output from layer 1 neurons
+layer2[0].input[0]=layer1[0].neuronValue;
+calculate neuronValue from layer 1 neurons
 
 Neuron net[]][];
 net[1]
 
 float[] forwardPass(float input[]){
-	net[0][0].output = input[0]
-	net[0][1].output = input[1]
-	float outputVec[] = new float[4]
+	net[0][0].neuronValue = input[0]
+	net[0][1].neuronValue = input[1]
+	float neuronValueVec[] = new float[4]
 	for i = 1 ; i < 4
 		for j = 0 to layerSize
 		    prod = dotProduct(net[i-1], net[i][j].weights) + net[i][j].bias;
-		    net[i][j].output = actFunc(prod, index)
+		    net[i][j].neuronValue = actFunc(prod, index)
 			if i == 3
-				outputeVec[j] = net[i][j].output
+				neuronValueeVec[j] = net[i][j].neuronValue
 
 }
 
@@ -276,7 +296,7 @@ void activateFunc(float inp, int type)
 dotProd(neuron layer[], float weighjts[])
     prod = 0
     for i = 0 ; i < layerSize
-    	prod += layer[i].output*weights[i]
+    	prod += layer[i].neuronValue*weights[i]
 	return prod
 
 BACKPROP
@@ -284,26 +304,39 @@ BACKPROP
 t = new float[4]; [0 0 0 0]
 t[category-1] = 1
 
-wji -= h*output_previous*u'(dotproduct)*(output-t[i])
-w2 -= h*previous_neuron*u'(dotproduct)*(output-t[i])
+wji -= h*neuronValue_previous*u'(dotproduct)*(neuronValue-t[i])
+w2 -= h*previous_neuron*u'(dotproduct)*(neuronValue-t[i])
 
 hidden neuron wji
 
 wji -= h*previous_neuron*u'(dotproduct)*( ek1*u'(dotprduct)*updated_weightk1 + ...k2 + ..k3 )
 
 
+error = ek*u'(dotprod)*new_weight;
+
 for i = numberOfLayers to 0
 	Neuron[] layer = network[i];
 	for j = 0 to layerSize[i]
 
-		// if it is output neurom
+		// if it is neuronValue neurom
 		if i == 3{
 			for k = 0 to layerSize[i-1]{
-				network[i][j].weights[k] -= h*network[i-1][k].output*derivative(dotproduct(network[i-1],network[i][j].weights,size),type))*(network[i][j].output-target[k]);
+				network[i][j].weights[k] -= h*network[i-1][k].neuronValue*derivative(dotproduct(network[i-1],network[i][j].weights,size),type))*(network[i][j].neuronValue-target[k]);
 			}
 		}else{
 			
 		}
 
+update wji
+
+Dwji = h*delta*previous_neuron_neuronValue
+
+delta(j) = u'(dot)*(sum(delta_next*wji))
+
+
+backprop
+---------
+1)delta
+2)w
 
 (*/
