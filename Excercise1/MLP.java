@@ -9,8 +9,8 @@ class MLP{
 	private static final int d=2;
 	//number of categories
 	private static final int k=4;
-	private static final int neuronsH1=2;
-	private static final int neuronsH2=2;
+	private static final int neuronsH1=7;
+	private static final int neuronsH2=4;
 
 	// Array that keeps for each layer its size
 	private static final int layerSize[]={d,neuronsH1,neuronsH2,k};
@@ -22,10 +22,11 @@ class MLP{
 	// Our neural network is an asymmetric array
 	private static Neuron network[][];
 	// learning rate parameter
-	private static float learningRate=0.05f;
+	private static float learningRate=0.02f;
 	//number of batches(B)
-	public static int numBatches = 10;
+	private static int numBatches = 300;
 
+	private static int batchSize=size/numBatches;
 	//{d,H1,H2,k}
 	private static int numberOfLayers=4;
 
@@ -180,13 +181,27 @@ class MLP{
 					//delta for output neuron: (result[k]-target[k])*derivative(network[i][j].dot)
 					//float productResult=dotProduct(network[i-1],network[i][j].weights,layerSize[i-1]);
 					// network[i][j].delta=derivative(network[i][j].dot,i)*(result[k]-target[k]);
-					network[i][j].weights[k] -= learningRate*network[i][j].delta*network[i-1][k].neuronValue;
-					network[i][j].bias -= learningRate* network[i][j].delta;
+					network[i][j].errorWeights[k] += network[i][j].delta*network[i-1][k].neuronValue;
+					network[i][j].errorBias += network[i][j].delta;
 					// bias[j] -= gamma_bias * 1 * delta[j];
 
 				}
 			}
 
+		}
+	}
+
+
+	public static void updateWeights(){
+		for(int i=1;i<numberOfLayers;i++){
+			for(int j=0;j<layerSize[i];j++){
+				for(int k=0;k<layerSize[i-1];k++){
+					network[i][j].weights[k]-= learningRate*(network[i][j].errorWeights[k]/batchSize);
+					network[i][j].bias -= learningRate*(network[i][j].errorBias/batchSize);
+					network[i][j].errorWeights[k] = 0;
+					network[i][j].errorBias = 0;
+				}
+			}
 		}
 	}
 
@@ -210,12 +225,12 @@ class MLP{
 	}
 
 
-	public static void shuffleArray(){
+	// public static void shuffleArray(){
 		
-		List<Point> pointList = Arrays.asList(trainingSet);
-		Collections.shuffle(pointList);
-		pointList.toArray(trainingSet);
-	}
+	// 	List<Point> pointList = Arrays.asList(trainingSet);
+	// 	Collections.shuffle(pointList);
+	// 	pointList.toArray(trainingSet);
+	// }
 
 	public static float getTotalExampleError(float result[], float target[]){
 		//calculate error
@@ -225,6 +240,31 @@ class MLP{
 		}
 		return error;
 	}
+
+	public static void evaluateNetwork(){
+		float coordinates[]=new float[d];
+		float result[];
+		float target[]=new float[k];
+		int correct=0;
+
+		for(int i=0;i<size;i++){
+			coordinates[0]=validationSet[i].x1;
+			coordinates[1]=validationSet[i].x2;
+			target[validationSet[i].category-1]=1;
+			
+			result=forwardPass(coordinates);
+			int maxNeuronValueIndex = getMax(result);
+			
+			if(target[maxNeuronValueIndex]==1)
+			{
+				correct++;
+			}
+			target[validationSet[i].category-1]=0;
+		}
+		float correctPercentage = (float)correct/size;
+		System.out.println(correctPercentage);
+	}
+
 
 	public static void trainNetwork(){
 		float arr[]=new float[d];
@@ -236,7 +276,7 @@ class MLP{
 		float previousError = Float.MAX_VALUE;
 
 		float errorDifference = 1;
-		while(epoch<500 || errorDifference > 0.0001)
+		while(epoch<500 || errorDifference > 0.001)
 		{
 			correct = 0;
 			totalError=0;
@@ -257,16 +297,18 @@ class MLP{
 				//debug only
 				if(true)
 				{
-					int ind = getMax(result);
-					if(target[ind]==1)
-					{
-						correct++;
-					}
+					
 				}
-				
+				//end of batch
+				//if((i+1)/batchSize != i/batchSize){
+				updateWeights();
+				//}
+
 				totalError += getTotalExampleError(result, target);
 				target[trainingSet[i].category-1]=0;
 			}
+			//End of an epoch
+
 			epoch++;
 			// for(int w = 0; w < k; w++){
 			// 	System.out.println("------------------");
@@ -279,7 +321,6 @@ class MLP{
 			// printVector(target);
 			// System.out.println();
 			// System.out.println("Total error "+totalError);
-			// shuffleArray();
 			System.out.println("epoch: "+epoch+", totalError: "+totalError);
 			//System.out.println("incorrect: "+incorrect);
 			errorDifference = Math.abs(previousError - totalError);
@@ -296,7 +337,6 @@ class MLP{
 		float x1;
 		float x2;
 		int category;
-		int batchLabel;
 
 		Point(float x1,float x2,int category){
 			this.x1=x1;
@@ -307,17 +347,21 @@ class MLP{
 	}
 	static class Neuron{
 		float weights[];
+		float errorWeights[];
 		float neuronValue;
 		float bias;
+		float errorBias;
 		float delta;
 		float dot;
 
 		Neuron(int weightsLength){
 			weights=new float[weightsLength];
+			errorWeights=new float[weightsLength];
 			for(int i=0;i<weightsLength;i++){
 				weights[i]=r.nextFloat() * (2)-1;
 			}
 			bias=r.nextFloat() * (2)-1;
+		
 		}
 
 	}
@@ -355,16 +399,12 @@ class MLP{
 		readFile("training_set.csv",true);
 		
 		initiateNetwork();
-		// printNeuronneuronValues();
-		// printNeuronWeights();
-
-		// float input[] = {trainingSet[0].x1,                                                                                                                                                                                              trainingSet[0].x2};
-		// float[] arr = forwardPass(input);
 		trainNetwork();
+
+		readFile("test_set.csv", false);
+		evaluateNetwork();
 		//System.out.println("network trained");
-		// for (int i=0;i<4;i++){
-		// 	System.out.println(arr[i]);
-		// }
+		
 	}
 }
 
@@ -379,6 +419,8 @@ class neuron{
 	calculateneuronValue();
 
 }
+{{h1,h2},}
+{batchsize}
 
 neuron layer1[2];
 neuron layer2[2];
