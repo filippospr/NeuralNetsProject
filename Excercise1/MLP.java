@@ -1,6 +1,5 @@
 import java.io.*;  // Import the io library
-import java.util.Scanner; // Import the Scanner class to read text files
-import java.util.Random;
+import java.util.*;
 import java.lang.Math;
 
 class MLP{
@@ -12,11 +11,20 @@ class MLP{
 	private static final int k=4;
 	private static final int neuronsH1=2;
 	private static final int neuronsH2=2;
+
+	// Array that keeps for each layer its size
 	private static final int layerSize[]={d,neuronsH1,neuronsH2,k};
+	// Set to train
 	private static Point trainingSet[]=new Point[size];
+	// Set to test
 	private static Point validationSet[]=new Point[size];
+	
+	// Our neural network is an asymmetric array
 	private static Neuron network[][];
-	private static float learningRate=0.5f;
+	// learning rate parameter
+	private static float learningRate=0.05f;
+	//number of batches(B)
+	public static int numBatches = 10;
 
 	//{d,H1,H2,k}
 	private static int numberOfLayers=4;
@@ -45,26 +53,27 @@ class MLP{
 				validationSet[pointIndex++]=point;
 			}
 		}
-		System.out.println(pointIndex);
 		reader.close();
 
 	}
-	//to do sinartisi energopoihshs
 	public static void initiateNetwork(){
 		network=new Neuron[numberOfLayers][];
-		for(int i=0;i<numberOfLayers;i++){
+		for(int i=0;i<numberOfLayers;i++)
+		{
 			network[i]=new Neuron[layerSize[i]];
-			for(int j=0;j<layerSize[i];j++){
-				network[i][j]=new Neuron(layerSize[i]);
-			}
+			
+				for(int j=0;j<layerSize[i];j++)
+				{
+					if(i>=1){
+						network[i][j]=new Neuron(layerSize[i-1]);
+					}
+					else{
+						network[i][j]=new Neuron(layerSize[i]);
+					}
+				}
 		}
 		//we dont need weights for inputs
-		network[0][0].weights = null;
-		network[0][1].weights = null;
-
 	}
-
-	
 
 	
 
@@ -84,35 +93,53 @@ class MLP{
 	public static float dotProduct(Neuron layer[],float weights[],int layerSize){
 	 	float productSum = 0;
     	for (int i = 0 ; i < layerSize;i++){
+    		// System.out.println("---------------");
+    		// System.out.println(layer[i].neuronValue);
+    		// System.out.println(weights[i]);
+    		// System.out.println("---------------");
     		productSum += layer[i].neuronValue*weights[i];
     	}
 		return productSum;
 	}
 
-	public static float derivative(float num,int type){
-		if(type==1){
-			return (float)Math.pow((1-activateFunc(num,type)),2);
-		}
-		else if(type==2 || type==3){
-			return activateFunc(num,type)*(1-activateFunc(num,type));
-		}
-		System.out.println("activate function not found");
-		return 0;
-	}
+	// public static float derivative(float num,int type){
+	// 	if(type==1){
+	// 		return (float)Math.pow((1-activateFunc(num,type)),2);
+	// 	}
+	// 	else if(type==2 || type==3){
+	// 		return activateFunc(num,type)*(1-activateFunc(num,type));
+	// 	}
+	// 	System.out.println("activate function not found");
+	// 	return 0;
+	// }
+
 
 	public static void calculateDeltas(int layerIndex,float result[],float target[]){
 		float deltaSum = 0;
+		float nValue;
+		float der;
 		for(int  neuron=0;neuron<layerSize[layerIndex];neuron++){
+			nValue = network[layerIndex][neuron].neuronValue;
+			
+			//calculate derivative
+			if(layerIndex==1){
+				//first hidden layer has different derivative
+				der = 1-(float)Math.pow(nValue,2);
+			}else{
+				der = nValue*(1-nValue);
+			}
+
 			// delta for output neurons
 			if(layerIndex==(k-1)){
-				network[layerIndex][neuron].delta = derivative(network[layerIndex][neuron].dot,layerIndex)*(result[neuron]-target[neuron]);
+				network[layerIndex][neuron].delta = der*(result[neuron]-target[neuron]);
 			}
 			else{
 			// delta for hidden neurons
 				for(int i=0;i<layerSize[layerIndex+1];i++){
 					deltaSum+=network[layerIndex+1][i].delta*network[layerIndex+1][i].weights[neuron];
 				}
-				network[layerIndex][neuron].delta= derivative(network[layerIndex][neuron].dot,layerIndex)*deltaSum;
+				
+				network[layerIndex][neuron].delta= der*deltaSum;
 			}
 		}
 
@@ -138,48 +165,130 @@ class MLP{
 
 	public static void backprop(float result[],float target[]){
 		//calculate neuronValue neurons error
+		
+		//for each layer
 		for (int i = numberOfLayers-1;i>0;i--)
 		{
+			//for each neuron of the current layer
 			for (int j = 0 ;j<layerSize[i];j++)
 			{
 				
 				calculateDeltas(i,result,target);
-
+				//for each neuron of the previous layer
 				for (int k = 0 ;k<layerSize[i-1];k++)
 				{
 					//delta for output neuron: (result[k]-target[k])*derivative(network[i][j].dot)
 					//float productResult=dotProduct(network[i-1],network[i][j].weights,layerSize[i-1]);
 					// network[i][j].delta=derivative(network[i][j].dot,i)*(result[k]-target[k]);
-					network[i][j].weights[k] -= learningRate*network[i][k].delta*network[i-1][k].neuronValue;
+					network[i][j].weights[k] -= learningRate*network[i][j].delta*network[i-1][k].neuronValue;
 					network[i][j].bias -= learningRate* network[i][j].delta;
-					//bias[j] -= gamma_bias * 1 * delta[j]
+					// bias[j] -= gamma_bias * 1 * delta[j];
+
 				}
 			}
 
 		}
 	}
 
+	public static void printVector(float arr[]){
+		for(int i = 0; i < 4; i++){
+			System.out.print(arr[i]+ " ");
+		}
+		System.out.println();
+	}
+
+	public static int getMax(float arr[]){
+		float max = arr[0];
+		int index = 0;
+		for(int i = 1; i < 4; i++){
+			if(arr[i]>max){
+				max =arr[i];
+				index = i;
+			}
+		}
+		return index; 
+	}
+
+
+	public static void shuffleArray(){
+		
+		List<Point> pointList = Arrays.asList(trainingSet);
+		Collections.shuffle(pointList);
+		pointList.toArray(trainingSet);
+	}
+
+	public static float getTotalExampleError(float result[], float target[]){
+		//calculate error
+		float error = 0;
+		for(int w=0;w<k;w++){
+			error +=(float)(0.5f)*Math.pow((result[w]-target[w]),2);
+		}
+		return error;
+	}
+
 	public static void trainNetwork(){
 		float arr[]=new float[d];
 		float target[]=new float[k];
-		float result[];
+		float result[]=null;
 		float totalError=0;
-		int epoch=500;
-		for(int j=0;j<epoch;j++){
-			for(int i=0;i<size;i++){
+		int epoch = 0;
+		int correct = 0;
+		float previousError = Float.MAX_VALUE;
+
+		float errorDifference = 1;
+		while(epoch<500 || errorDifference > 0.0001)
+		{
+			correct = 0;
+			totalError=0;
+			for(int i=0;i<size;i++)
+			{
 				arr[0]=trainingSet[i].x1;
 				arr[1]=trainingSet[i].x2;
+				//System.out.println(trainingSet[i].category);
+				// if(trainingSet[i].category==4 &&  j < epoch - 1){
+				//  	continue;
+				// }
 				target[trainingSet[i].category-1]=1;
+
+				// printVector(target);
 				result=forwardPass(arr);
 				backprop(result,target);
-				target[trainingSet[i].category-1]=0;
-				for(int w=0;w<k;w++){
-					totalError+=(float)(0.5f)*Math.pow((result[w]-target[w]),2);
+
+				//debug only
+				if(true)
+				{
+					int ind = getMax(result);
+					if(target[ind]==1)
+					{
+						correct++;
+					}
 				}
+				
+				totalError += getTotalExampleError(result, target);
+				target[trainingSet[i].category-1]=0;
 			}
-			System.out.println("Total error "+totalError);
-			totalError=0;
+			epoch++;
+			// for(int w = 0; w < k; w++){
+			// 	System.out.println("------------------");
+			// 	System.out.print(result[w]+" ");
+			// 	System.out.println();
+			// 	System.out.print(target[w]+" ");
+			// 	System.out.println("------------------");
+			// }
+			// printVector(result);
+			// printVector(target);
+			// System.out.println();
+			// System.out.println("Total error "+totalError);
+			// shuffleArray();
+			System.out.println("epoch: "+epoch+", totalError: "+totalError);
+			//System.out.println("incorrect: "+incorrect);
+			errorDifference = Math.abs(previousError - totalError);
+			previousError = totalError;
+
 		}
+
+		System.out.println("Error Difference: "+ errorDifference);
+
 	}
 
 
@@ -187,6 +296,7 @@ class MLP{
 		float x1;
 		float x2;
 		int category;
+		int batchLabel;
 
 		Point(float x1,float x2,int category){
 			this.x1=x1;
@@ -243,6 +353,7 @@ class MLP{
 
 	public static void main(String[] args) {
 		readFile("training_set.csv",true);
+		
 		initiateNetwork();
 		// printNeuronneuronValues();
 		// printNeuronWeights();
@@ -250,7 +361,7 @@ class MLP{
 		// float input[] = {trainingSet[0].x1,                                                                                                                                                                                              trainingSet[0].x2};
 		// float[] arr = forwardPass(input);
 		trainNetwork();
-		System.out.println("network trained");
+		//System.out.println("network trained");
 		// for (int i=0;i<4;i++){
 		// 	System.out.println(arr[i]);
 		// }
